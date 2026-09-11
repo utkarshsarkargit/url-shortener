@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import string
@@ -25,7 +25,7 @@ def generate_short_code(length: int = 6) -> str:
 
 @app.get("/")
 def read_root():
-    return {"message": "URL Shortener is alive and running!"}
+    return FileResponse("static/index.html")
 
 
 @app.post("/shorten")
