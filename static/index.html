@@ -2,31 +2,170 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>URL Shortener</title>
+<title>Shortr</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
-  body { font-family: sans-serif; max-width: 500px; margin: 60px auto; padding: 0 20px; }
-  input, button { padding: 10px; font-size: 16px; width: 100%; margin-top: 10px; box-sizing: border-box; }
-  button { cursor: pointer; }
-  #result { margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 6px; word-break: break-all; }
+  :root {
+    --bg: #17173a;
+    --panel: #1f1f4a;
+    --border: rgba(255,255,255,0.08);
+    --accent: #ffb84d;
+    --text: #f0eefa;
+    --muted: #9c97c4;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Manrope', sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 80px 20px;
+    margin: 0;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 36px;
+    width: 100%;
+    max-width: 460px;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 800;
+    margin: 0 0 6px;
+  }
+  p.sub {
+    color: var(--muted);
+    margin: 0 0 28px;
+    font-size: 14px;
+  }
+  input[type=text] {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #14142f;
+    color: var(--text);
+    font-family: 'Manrope', sans-serif;
+    font-size: 15px;
+  }
+  input[type=text]:focus { outline: 2px solid var(--accent); }
+  button {
+    width: 100%;
+    margin-top: 12px;
+    padding: 14px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #17173a;
+    font-weight: 800;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  button:hover { opacity: 0.9; }
+  #result {
+    display: none;
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    animation: reveal 0.35s ease;
+  }
+  @keyframes reveal {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .short-link {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    color: var(--accent);
+    text-decoration: none;
+    word-break: break-all;
+  }
+  .row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-top: 10px;
+  }
+  .row button {
+    width: auto;
+    margin-top: 0;
+    padding: 8px 14px;
+    font-size: 13px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-weight: 600;
+  }
+  #qrImg {
+    margin-top: 18px;
+    border-radius: 8px;
+    display: block;
+    width: 120px;
+    background: white;
+    padding: 8px;
+  }
+  .stat {
+    margin-top: 16px;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .stat span { color: var(--text); font-weight: 700; }
 </style>
 </head>
 <body>
-  <h1>URL Shortener</h1>
-  <input type="text" id="urlInput" placeholder="Paste URL here">
-  <button onclick="shorten()">Shorten</button>
-  <div id="result"></div>
+  <div class="panel">
+    <h1>Make it short.</h1>
+    <p class="sub">Paste a link, get something small enough to actually say out loud.</p>
+
+    <input type="text" id="urlInput" placeholder="https://example.com/a-very-long-url">
+    <button onclick="shorten()">Shorten it</button>
+
+    <div id="result">
+      <a class="short-link" id="shortLink" href="#" target="_blank"></a>
+      <div class="row">
+        <button onclick="copyLink()">Copy</button>
+        <button onclick="refreshStats()">Refresh clicks</button>
+      </div>
+      <img id="qrImg" src="">
+      <div class="stat"><span id="clickCount">0</span> clicks so far</div>
+    </div>
+  </div>
 
 <script>
+let currentCode = null;
+
 async function shorten() {
   const url = document.getElementById('urlInput').value;
+  if (!url) return;
   const res = await fetch('/shorten', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url })
   });
   const data = await res.json();
-  document.getElementById('result').innerHTML =
-    `<a href="${data.short_url}" target="_blank">${data.short_url}</a>`;
+  currentCode = data.short_code;
+
+  const link = document.getElementById('shortLink');
+  link.href = data.short_url;
+  link.textContent = data.short_url;
+  document.getElementById('qrImg').src = `/qr/${data.short_code}`;
+  document.getElementById('result').style.display = 'block';
+  refreshStats();
+}
+
+async function refreshStats() {
+  if (!currentCode) return;
+  const res = await fetch(`/stats/${currentCode}`);
+  const data = await res.json();
+  document.getElementById('clickCount').textContent = data.click_count;
+}
+
+function copyLink() {
+  navigator.clipboard.writeText(document.getElementById('shortLink').href);
 }
 </script>
 </body>

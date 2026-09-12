@@ -1,9 +1,11 @@
 from fastapi import FastAPI, HTTPException, Depends, Request
-from fastapi.responses import RedirectResponse, FileResponse
+from fastapi.responses import RedirectResponse, FileResponse, StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import string
 import random
+import qrcode
+import io
 
 from database import SessionLocal, URLMapping
 
@@ -44,4 +46,25 @@ def redirect_to_url(short_code: str, db: Session = Depends(get_db)):
     entry = db.query(URLMapping).filter(URLMapping.short_code == short_code).first()
     if not entry:
         raise HTTPException(status_code=404, detail="Short URL not found")
+    entry.click_count += 1
+    db.commit()
     return RedirectResponse(url=entry.original_url)
+
+@app.get("/qr/{short_code}")
+def get_qr_code(short_code: str, request: Request, db: Session = Depends(get_db)):
+    entry = db.query(URLMapping).filter(URLMapping.short_code == short_code).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Short URL not found")
+    short_url = f"{request.base_url}{short_code}"
+    img = qrcode.make(short_url)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="image/png")
+
+@app.get("/stats/{short_code}")
+def get_stats(short_code: str, db: Session = Depends(get_db)):
+    entry = db.query(URLMapping).filter(URLMapping.short_code == short_code).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Short URL not found")
+    return {"original_url": entry.original_url, "click_count": entry.click_count}
