@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.responses import RedirectResponse, FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -29,14 +29,15 @@ def read_root():
 
 
 @app.post("/shorten")
-def shorten_url(request: URLRequest, db: Session = Depends(get_db)):
-    original = request.url
+def shorten_url(body: URLRequest, request: Request, db: Session = Depends(get_db)):
+    original = body.url
     if not original.startswith(("http://", "https://")):
         original = "https://" + original
+    
     short_code = generate_short_code()
     db.add(URLMapping(short_code=short_code, original_url=original))
     db.commit()
-    return {"short_code": short_code, "short_url": f"http://127.0.0.1:8000/{short_code}"}
+    return {"short_code": short_code, "short_url": f"{request.base_url}{short_code}"}
 
 @app.get("/{short_code}")
 def redirect_to_url(short_code: str, db: Session = Depends(get_db)):
