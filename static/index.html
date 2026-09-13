@@ -32,18 +32,12 @@
     width: 100%;
     max-width: 460px;
   }
-  h1 {
-    font-size: 22px;
-    font-weight: 800;
-    margin: 0 0 6px;
-  }
-  p.sub {
-    color: var(--muted);
-    margin: 0 0 28px;
-    font-size: 14px;
-  }
+  h1 { font-size: 22px; font-weight: 800; margin: 0 0 6px; }
+  p.sub { color: var(--muted); margin: 0 0 28px; font-size: 14px; }
+  .input-row { display: flex; gap: 8px; }
   input[type=text] {
-    width: 100%;
+    flex: 1;
+    min-width: 0;
     padding: 14px 16px;
     border-radius: 8px;
     border: 1px solid var(--border);
@@ -53,6 +47,19 @@
     font-size: 15px;
   }
   input[type=text]:focus { outline: 2px solid var(--accent); }
+  .icon-btn {
+    flex-shrink: 0;
+    width: 48px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #14142f;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .icon-btn:hover { color: var(--accent); border-color: var(--accent); }
   button {
     width: 100%;
     margin-top: 12px;
@@ -66,6 +73,7 @@
     cursor: pointer;
   }
   button:hover { opacity: 0.9; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
   #result {
     display: none;
     margin-top: 28px;
@@ -84,35 +92,13 @@
     text-decoration: none;
     word-break: break-all;
   }
-  .row {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    margin-top: 10px;
-  }
+  .row { display: flex; gap: 10px; align-items: center; margin-top: 10px; }
   .row button {
-    width: auto;
-    margin-top: 0;
-    padding: 8px 14px;
-    font-size: 13px;
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text);
-    font-weight: 600;
+    width: auto; margin-top: 0; padding: 8px 14px; font-size: 13px;
+    background: transparent; border: 1px solid var(--border); color: var(--text); font-weight: 600;
   }
-  #qrImg {
-    margin-top: 18px;
-    border-radius: 8px;
-    display: block;
-    width: 120px;
-    background: white;
-    padding: 8px;
-  }
-  .stat {
-    margin-top: 16px;
-    font-size: 14px;
-    color: var(--muted);
-  }
+  #qrImg { margin-top: 18px; border-radius: 8px; display: block; width: 120px; background: white; padding: 8px; }
+  .stat { margin-top: 16px; font-size: 14px; color: var(--muted); }
   .stat span { color: var(--text); font-weight: 700; }
 </style>
 </head>
@@ -121,14 +107,22 @@
     <h1>Make it short.</h1>
     <p class="sub">Paste a link, get something small enough to actually say out loud.</p>
 
-    <input type="text" id="urlInput" placeholder="https://example.com/a-very-long-url">
-    <button onclick="shorten()">Shorten it</button>
+    <div class="input-row">
+      <input type="text" id="urlInput" placeholder="https://example.com/a-very-long-url">
+      <button class="icon-btn" type="button" onclick="pasteUrl()" title="Paste from clipboard">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="8" y="2" width="8" height="4" rx="1"></rect>
+          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+        </svg>
+      </button>
+    </div>
+    <button id="shortenBtn" type="button" onclick="shorten()">Shorten it</button>
 
     <div id="result">
       <a class="short-link" id="shortLink" href="#" target="_blank"></a>
       <div class="row">
-        <button onclick="copyLink()">Copy</button>
-        <button onclick="refreshStats()">Refresh clicks</button>
+        <button type="button" onclick="copyLink()">Copy</button>
+        <button type="button" onclick="refreshStats()">Refresh clicks</button>
       </div>
       <img id="qrImg" src="">
       <div class="stat"><span id="clickCount">0</span> clicks so far</div>
@@ -136,10 +130,35 @@
   </div>
 
 <script>
+const urlInput = document.getElementById('urlInput');
+const shortenBtn = document.getElementById('shortenBtn');
 let currentCode = null;
 
+async function pasteUrl() {
+  try {
+    const text = await navigator.clipboard.readText();
+    urlInput.value = text;
+    shortenBtn.disabled = false;
+    urlInput.focus();
+  } catch (e) {
+    alert('Could not read clipboard — try pasting manually with Ctrl+V.');
+  }
+}
+
+urlInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    shorten();
+  }
+});
+
+urlInput.addEventListener('input', () => {
+  shortenBtn.disabled = false;
+});
+
 async function shorten() {
-  const url = document.getElementById('urlInput').value;
+  if (shortenBtn.disabled) return;
+  const url = urlInput.value;
   if (!url) {
     alert('Paste a URL first.');
     return;
@@ -162,6 +181,7 @@ async function shorten() {
     link.textContent = data.short_url;
     document.getElementById('qrImg').src = `/qr/${data.short_code}`;
     document.getElementById('result').style.display = 'block';
+    shortenBtn.disabled = true;
     refreshStats();
   } catch (e) {
     alert('Network error: could not reach the server.');
