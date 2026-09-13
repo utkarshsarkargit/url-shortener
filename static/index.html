@@ -140,21 +140,32 @@ let currentCode = null;
 
 async function shorten() {
   const url = document.getElementById('urlInput').value;
-  if (!url) return;
-  const res = await fetch('/shorten', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ url })
-  });
-  const data = await res.json();
-  currentCode = data.short_code;
-
-  const link = document.getElementById('shortLink');
-  link.href = data.short_url;
-  link.textContent = data.short_url;
-  document.getElementById('qrImg').src = `/qr/${data.short_code}`;
-  document.getElementById('result').style.display = 'block';
-  refreshStats();
+  if (!url) {
+    alert('Paste a URL first.');
+    return;
+  }
+  try {
+    const res = await fetch('/shorten', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      alert('Something went wrong: ' + (err.detail || res.status));
+      return;
+    }
+    const data = await res.json();
+    currentCode = data.short_code;
+    const link = document.getElementById('shortLink');
+    link.href = data.short_url;
+    link.textContent = data.short_url;
+    document.getElementById('qrImg').src = `/qr/${data.short_code}`;
+    document.getElementById('result').style.display = 'block';
+    refreshStats();
+  } catch (e) {
+    alert('Network error: could not reach the server.');
+  }
 }
 
 async function refreshStats() {
